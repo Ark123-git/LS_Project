@@ -26,6 +26,7 @@ class Video(models.Model):
     likes = models.ManyToManyField(User, related_name='liked_videos', blank=True)
     watch_later = models.ManyToManyField(User, related_name='watch_later_videos', blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    subscribers = models.ManyToManyField(User, related_name='subscribed_videos', blank=True)
 
     def __str__(self):
         return self.title

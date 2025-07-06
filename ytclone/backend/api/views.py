@@ -1,14 +1,14 @@
 
 
-
 # from rest_framework import viewsets, permissions
-# from rest_framework.decorators import api_view
+# from rest_framework.decorators import api_view, permission_classes
 # from rest_framework.authtoken.models import Token
 # from rest_framework.response import Response
 # from rest_framework import status
 # from rest_framework.parsers import MultiPartParser, FormParser
 # from django.contrib.auth.models import User
 # from django.contrib.auth import authenticate
+# from django.shortcuts import get_object_or_404
 
 # from .models import Video, Comment, Category
 # from .serializers import VideoSerializer, CommentSerializer, UserSerializer, CategorySerializer
@@ -75,8 +75,9 @@
 
 
 # @api_view(['POST'])
+# @permission_classes([permissions.IsAuthenticated])
 # def toggle_like(request, video_id):
-#     video = Video.objects.get(id=video_id)
+#     video = get_object_or_404(Video, id=video_id)
 #     user = request.user
 #     if user in video.likes.all():
 #         video.likes.remove(user)
@@ -85,51 +86,50 @@
 #     return Response({'likes': video.likes.count()})
 
 
-
 # @api_view(['POST'])
+# @permission_classes([permissions.IsAuthenticated])
 # def toggle_watch_later(request, video_id):
+#     video = get_object_or_404(Video, id=video_id)
 #     user = request.user
-#     if not user.is_authenticated:
-#         return Response({'error': 'Authentication required'}, status=401)
-
-#     try:
-#         video = Video.objects.get(id=video_id)
-#     except Video.DoesNotExist:
-#         return Response({'error': 'Video not found'}, status=404)
-
 #     if user in video.watch_later.all():
 #         video.watch_later.remove(user)
-#         return Response({'watch_later': False})
+#         return Response({'watch_later': False, 'message': 'Removed from watch later'})
 #     else:
 #         video.watch_later.add(user)
-#         return Response({'watch_later': True})
-    
+#         return Response({'watch_later': True, 'message': 'Added to watch later'})
+
+
 # @api_view(['GET'])
+# @permission_classes([permissions.IsAuthenticated])
 # def get_watch_later(request):
-#     if not request.user.is_authenticated:
-#         return Response({'error': 'Not authenticated'}, status=401)
 #     videos = request.user.watch_later_videos.all()
-#     serializer = VideoSerializer(videos, many=True)
+#     serializer = VideoSerializer(videos, many=True, context={'request': request})
 #     return Response(serializer.data)
 
+
 # @api_view(['POST'])
+# @permission_classes([permissions.IsAuthenticated])
 # def add_comment(request, video_id):
-#     video = Video.objects.get(id=video_id)
+#     video = get_object_or_404(Video, id=video_id)
+#     text = request.data.get('text')
+#     if not text:
+#         return Response({'error': 'Comment text required'}, status=400)
+
 #     comment = Comment.objects.create(
 #         user=request.user,
 #         video=video,
-#         text=request.data.get('text')
+#         text=text
 #     )
 #     return Response(CommentSerializer(comment).data)
 
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
-from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
+from django.shortcuts import get_object_or_404
 
 from .models import Video, Comment, Category
 from .serializers import VideoSerializer, CommentSerializer, UserSerializer, CategorySerializer
@@ -198,11 +198,7 @@ def login_user(request):
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def toggle_like(request, video_id):
-    try:
-        video = Video.objects.get(id=video_id)
-    except Video.DoesNotExist:
-        return Response({'error': 'Video not found'}, status=404)
-
+    video = get_object_or_404(Video, id=video_id)
     user = request.user
     if user in video.likes.all():
         video.likes.remove(user)
@@ -214,36 +210,28 @@ def toggle_like(request, video_id):
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def toggle_watch_later(request, video_id):
-    try:
-        video = Video.objects.get(id=video_id)
-    except Video.DoesNotExist:
-        return Response({'error': 'Video not found'}, status=404)
-
+    video = get_object_or_404(Video, id=video_id)
     user = request.user
     if user in video.watch_later.all():
         video.watch_later.remove(user)
-        return Response({'watch_later': False})
+        return Response({'watch_later': False, 'message': 'Removed from watch later'})
     else:
         video.watch_later.add(user)
-        return Response({'watch_later': True})
+        return Response({'watch_later': True, 'message': 'Added to watch later'})
 
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def get_watch_later(request):
     videos = request.user.watch_later_videos.all()
-    serializer = VideoSerializer(videos, many=True)
+    serializer = VideoSerializer(videos, many=True, context={'request': request})
     return Response(serializer.data)
 
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def add_comment(request, video_id):
-    try:
-        video = Video.objects.get(id=video_id)
-    except Video.DoesNotExist:
-        return Response({'error': 'Video not found'}, status=404)
-
+    video = get_object_or_404(Video, id=video_id)
     text = request.data.get('text')
     if not text:
         return Response({'error': 'Comment text required'}, status=400)
@@ -254,3 +242,18 @@ def add_comment(request, video_id):
         text=text
     )
     return Response(CommentSerializer(comment).data)
+
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def toggle_subscribe(request, video_id):
+    video = get_object_or_404(Video, id=video_id)
+    user = request.user
+
+    if user in video.subscribers.all():
+        video.subscribers.remove(user)
+        return Response({'subscribed': False, 'message': 'Unsubscribed'})
+    else:
+        video.subscribers.add(user)
+        return Response({'subscribed': True, 'message': 'Subscribed'})
